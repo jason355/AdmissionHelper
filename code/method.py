@@ -1,0 +1,200 @@
+from seleniumbase import Driver
+from selenium.webdriver.common.by import By
+from bs4 import BeautifulSoup
+import time, base64, io, re, os, shutil
+from PIL import Image as PILImage
+import pdf_maker as Pdf
+import pytesseract
+ 
+
+def OCR(img_data):
+    try:
+        # 載入圖片
+        # Decode base64 to image
+        img_bytes = base64.b64decode(img_data)
+        image = PILImage.open(io.BytesIO(img_bytes))
+
+        text = pytesseract.image_to_string(image, lang="eng")
+        
+        if text == None or len(text) == 0:
+            return False
+        if re.match(r'^\d{8}$', text):
+            return int(text)
+
+    except FileNotFoundError:
+        print(f"圖片檔案不存在")
+    except Exception as e:
+        print(f"OCR 處理時發生錯誤: {e}")
+
+
+def clear_directory(directory_path):
+    try:
+        if os.path.exists(directory_path):
+            shutil.rmtree(directory_path)
+            os.makedirs(directory_path)
+        else:
+            os.makedirs(directory_path, exist_ok=True)
+    except PermissionError:
+        raise Exception(directory_path, "無法清空資料夾：權限不足")
+    except Exception as e:
+        raise Exception(directory_path, f"清空資料夾失敗：{str(e)}")
+
+def read_exam_id(file_path):
+    """Read serial numbers from a text file into a list."""
+    try:
+        with open(file_path, mode='r', encoding='utf-8') as file:
+            exam_ids = [line.strip() for line in file if line.strip()]
+            if not exam_ids:
+                insert_exam_id(file_path)
+                return read_exam_id(file_path)
+                 
+            return exam_ids
+    except FileNotFoundError:
+        # print(f"Error: File {file_path} not found, Creating {file_path}")
+        insert_exam_id(file_path)
+        return read_exam_id(file_path)
+        
+    except Exception as e:
+        print(f"Error reading exam_ids: {e}")
+        return None
+def insert_exam_id(file_path):    
+    with open(file_path, "w", encoding="utf-8") as file:
+        temp = input("請輸入准考證號碼(多筆資料請在每筆最後換行)，兩次換行結束輸入>")
+        while temp != "":
+            try:
+                if len(temp) == 8 and temp.isdigit():
+                    file.writelines(temp+"\n")
+                temp = input("請輸入准考證號碼(多筆資料請在每筆最後換行)，兩次換行結束輸入>")
+            except KeyboardInterrupt as KE:
+                break
+
+def submit_form_seleniumbase(exam_ids, url):
+    """Use SeleniumBase with undetectable mode to submit serial number and scrape results."""
+    try:
+        driver = Driver(uc=True)
+        
+        driver.uc_open_with_reconnect(url, reconnect_time=4)
+        
+        try:
+            driver.uc_gui_click_captcha()
+            print("CAPTCHA checkbox clicked")
+            time.sleep(0.2)
+        except:
+            print("No CAPTCHA detected or auto-bypassed")
+        exam_id = "\n".join(exam_ids) + "\n"
+        driver.find_element(By.NAME, "testids").send_keys(exam_id)
+        driver.find_element(By.XPATH, "//input[@type='submit']").click()
+        
+        driver.find_element(By.TAG_NAME, "table")
+        time.sleep(0.1)
+        html_content = driver.page_source
+        return html_content
+    except Exception as e:
+        print(f"Error during navigation or submission: {e}")
+        return None
+    finally:
+        driver.quit()
+
+def parse_table(html_content, exam_ids):
+    """Parse the table from the response page, focusing on specific rows."""
+    try:
+        print("Parsing table...")
+        soup = BeautifulSoup(html_content, 'html.parser')
+        table = soup.find_all('table')
+        table = table[2]
+
+        if not table:
+            print("Error: No table found")
+            return []
+        
+        data = []
+        # Get all <tr> tags and process from 3rd to penultimate
+        #rows = table.find_all('tr') # Third row (index 2) to penultimate
+        rows = [tr for tr in table.find_all('tr')[2:-1] if tr.get('bgcolor')]
+        
+        print(f"numbers of id:{len(rows)}")
+        for row in rows:
+            
+            # Find nested table in <td colspan="4">
+            nested_table = row.find('td', {'colspan': '4'}).find('table') if row.find('td', {'colspan': '4'}) else None
+            if not nested_table:
+                print(f"Skipping row without nested table")
+                continue
+            # Extract 學測應試號碼
+            id_img = row.find('td', {'width': '25%'}).find('img')
+            id_img_src = id_img['src']
+            if id_img_src.startswith('data:image/png;base64,'):
+                img_data = id_img_src.split(',')[1]
+
+                exam_id = str(OCR(img_data))
+            college_name = []
+            status = []
+            colors = []
+            count = 1
+            # Process each row in the nested table
+            for nested_row in nested_table.find_all('tr'):
+                
+                cols = nested_row.find_all('td')
+                if len(cols) >= 3:
+                    # Extract 校系名稱 from <td width="77%">
+                    college_td = nested_row.find('td', {'width': '77%'})
+                    college_name_now = college_td.find('a').text.strip() + '\n' if college_td and college_td.find('a') else "無資料\n"
+                    college_name.append(college_name_now)
+                    # Extract 正備取 from <td width="16%">
+                    status_td = nested_row.find('td', {'width': '16%'})
+                    if status_td:
+                        center_div = status_td.find('div', {'align': 'center'})
+                        img_src = center_div.find('img')['src'] if center_div and center_div.find('img') else ''
+                        div_class = center_div['class'][0] if center_div and center_div.get('class') else ''
+                        # Inside parse_table, replace the image-saving block:
+                        if img_src.startswith('data:image/png;base64,'):
+                            img_data = img_src.split(',')[1]
+                            # Decode base64 to image
+                            img_bytes = base64.b64decode(img_data)
+                            img = PILImage.open(io.BytesIO(img_bytes))
+                            # Convert image to RGB if it has transparency
+                            # Create new image with background
+                            if div_class == "m_leftred":
+                                colors.append("FF0000")
+                                bg_color = (255, 0, 0)  
+                            elif div_class == "m_leftgreen":
+                                colors.append("168716")
+                                bg_color = (0, 255, 0)
+                            bg_image = PILImage.new('RGBA', img.size, bg_color)
+                            bg_image.paste(img, (0, 0))
+                            
+                            # Save image
+                            img_filename = f"./images/{exam_id}_{count}.png"
+                            count += 1
+                            bg_image.save(img_filename, 'PNG')
+                            img_src = img_filename
+                            
+                        status_now =  img_src   if img_src else (status_td.find('div', class_='m_retestdate').text.strip() if status_td.find('div', class_='m_retestdate').text.strip() else '未知')
+                        status.append(status_now)
+                else:
+                    print(f"Skipping nested row with insufficient columns: {cols}")
+            # Use submitted serial number for 學測應試號碼
+            data.append({
+                '學測應試號碼': exam_id,
+                '校系名稱': college_name,
+                '二階甄試': status,
+                'color':colors
+            })
+
+        
+        #print(f"Parsed data: {data}")
+        return data
+    except Exception as e:
+        print(f"Error parsing table: {e}")
+        return []
+
+
+
+def save_to_pdf(data, output_file='results.pdf'):
+    print(f"saveing to {output_file}...")
+
+    # Instantiate the generator and create the PDF
+    generator = Pdf.StudentReportGenerator(data)
+    generator.generate_pdf(output_file)
+
+
