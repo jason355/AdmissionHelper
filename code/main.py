@@ -2,6 +2,8 @@ import method as Md
 import os
 def main():
     Md.clear_directory('./images/')
+    Md.clear_directory("./ocr_failed_images")
+
     year = input("請輸入查詢年分(民國)>")
 
     if not year.isdigit():

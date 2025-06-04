@@ -9,18 +9,17 @@ import pytesseract
 
 def OCR(img_data):
     try:
-        # 載入圖片
-        # Decode base64 to image
-        img_bytes = base64.b64decode(img_data)
-        image = PILImage.open(io.BytesIO(img_bytes))
-
-        text = pytesseract.image_to_string(image, lang="eng")
-        
+        text = pytesseract.image_to_string(img_data, lang="eng")
+        cleaned_text = re.sub(r'[^\d]', '', text)
+        pattern = r'^\d{8}$'
         if text == None or len(text) == 0:
             return False
-        if re.match(r'^\d{8}$', text):
-            return int(text)
-
+        match = re.match(pattern, cleaned_text)
+        if match:
+            return match.group(0)
+        else:
+            return False
+        
     except FileNotFoundError:
         print(f"圖片檔案不存在")
     except Exception as e:
@@ -113,7 +112,7 @@ def parse_table(html_content, exam_ids):
         rows = [tr for tr in table.find_all('tr')[2:-1] if tr.get('bgcolor')]
         
         print(f"numbers of id:{len(rows)}")
-        for row in rows:
+        for i, row in enumerate(rows):
             
             # Find nested table in <td colspan="4">
             nested_table = row.find('td', {'colspan': '4'}).find('table') if row.find('td', {'colspan': '4'}) else None
@@ -125,8 +124,16 @@ def parse_table(html_content, exam_ids):
             id_img_src = id_img['src']
             if id_img_src.startswith('data:image/png;base64,'):
                 img_data = id_img_src.split(',')[1]
-
-                exam_id = str(OCR(img_data))
+                # 載入圖片
+                # Decode base64 to image
+                img_bytes = base64.b64decode(img_data)
+                img_data = PILImage.open(io.BytesIO(img_bytes))
+                exam_id = OCR(img_data)
+                if not exam_id:
+                    img_data.save(f"./ocr_failed_images/{i}.png", "PNG")
+                else:
+                    #img_data.save(f"./ocr_failed_images/{i}.png", "PNG")
+                    exam_id = str(exam_id)
             college_name = []
             status = []
             colors = []
