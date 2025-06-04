@@ -190,11 +190,11 @@ def parse_table(html_content, exam_ids):
 
 
 
-def save_to_pdf(data, output_file='results.pdf'):
+def save_to_pdf(data, year, output_file='results.pdf'):
     print(f"saveing to {output_file}...")
 
     # Instantiate the generator and create the PDF
-    generator = Pdf.StudentReportGenerator(data)
+    generator = Pdf.StudentReportGenerator(data, year)
     generator.generate_pdf(output_file)
 
 

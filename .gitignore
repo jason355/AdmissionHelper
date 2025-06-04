@@ -6,6 +6,15 @@ __pycache__/
 # C extensions
 *.so
 
+icon.png
+exam_ids.txt
+icon.ico
+/downloaded_files
+/images
+/code/downloaded_files
+/code/images
+/code/results.pdf
+
 # Distribution / packaging
 .Python
 build/

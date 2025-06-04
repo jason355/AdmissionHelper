@@ -19,9 +19,10 @@ def resource_path(relative_path):
 # --- PDF Class for Header/Footer ---
 class MyPDF(FPDF):
     # These will be set by the StudentReportGenerator's __init__
-    def __init__(self, font_name, font_regular_path, font_bold_path, font_italic_path):
+    def __init__(self, year, font_name, font_regular_path, font_bold_path, font_italic_path):
         super().__init__()
         self.font_name = font_name
+        self.year = year
         # 載入字型
         self.add_font(font_name, "", font_regular_path)
         self.add_font(font_name, "B", font_bold_path)
@@ -29,7 +30,7 @@ class MyPDF(FPDF):
 
     def header(self):
         self.set_font(self.font_name, 'B', 20)
-        self.cell(0, 10, '學生甄試資料表', align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.cell(0, 10, f'{self.year}年度學生個人申請資料表', align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         self.ln(10)
 
     def footer(self):
@@ -39,8 +40,9 @@ class MyPDF(FPDF):
 
 # --- Main Report Generator Class ---
 class StudentReportGenerator:
-    def __init__(self, data, font_dir="./font/", image_dir="./images/"):
+    def __init__(self, data, year, font_dir="./font/", image_dir="./images/"):
         self.data = data
+        self.year = year
         self.font_dir = font_dir
         self.image_dir = image_dir
 
@@ -52,7 +54,7 @@ class StudentReportGenerator:
 
         self._check_font_files() # Ensure fonts exist early
 
-        self.pdf = MyPDF(self.font_name, self.font_regular_path, self.font_bold_path, self.font_italic_path)
+        self.pdf = MyPDF(self.year,self.font_name,  self.font_regular_path, self.font_bold_path, self.font_italic_path)
         self._setup_pdf()
 
         # --- Table Column Definitions (now class attributes) ---

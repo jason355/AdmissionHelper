@@ -20,7 +20,7 @@ def main():
             return
         
         table_data = Md.parse_table(html_content, exam_ids)
-        Md.save_to_pdf(table_data)
+        Md.save_to_pdf(table_data, year)
 
     
 if __name__ == '__main__':
