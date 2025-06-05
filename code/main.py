@@ -10,18 +10,16 @@ def main():
         print("請輸入阿拉伯數字與正確年分")
         main()
     else:
-        url = f"https://www.com.tw/cross/uncontinuequery{year}.html"
         exam_id_file  = 'exam_ids.txt'
 
         exam_ids = Md.read_exam_id(exam_id_file)
         if not exam_ids:
             return
-        #print(serial_numbers)
-        html_content = Md.submit_form_seleniumbase(exam_ids, url)
+        html_content = Md.submit_form_seleniumbase(exam_ids, year)
         if not html_content:
             return
         
-        table_data = Md.parse_table(html_content, exam_ids)
+        table_data = Md.parse_table(html_content)
         Md.save_to_pdf(table_data, year)
 
     
