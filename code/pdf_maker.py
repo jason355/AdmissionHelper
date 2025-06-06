@@ -59,11 +59,11 @@ class StudentReportGenerator:
 
         # --- Table Column Definitions (now class attributes) ---
         self.col_widths = {
-            '學測應試號碼': 30, # mm
+            '應試號碼與姓名': 30, # mm
             '校系名稱': 80,   # mm
             '二階甄試': 20    # mm (This needs to accommodate images)
         }
-        self.col_height = 10 # Default cell height for text rows
+        self.col_height = 20 # Default cell height for text rows
         self.padding = 5
         # Image dimensions within the table cell
         self.image_cell_width = 10 # mm
@@ -126,7 +126,7 @@ class StudentReportGenerator:
         self.pdf.set_fill_color(220, 220, 220)
 
         self.pdf.set_x(self.table_start_x)
-        self.pdf.cell(self.col_widths['學測應試號碼'], self.col_height, '學測應試號碼', border=1, align='C', fill=True)
+        self.pdf.cell(self.col_widths['應試號碼與姓名'], self.col_height, '應試號碼與姓名', border=1, align='C', fill=True)
         self.pdf.cell(self.col_widths['校系名稱'], self.col_height, '校系名稱', border=1, align='C', fill=True)
         self.pdf.cell(self.col_widths['二階甄試'], self.col_height, '二階甄試', border=1, align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
         self.pdf.set_font(self.font_name, size=9) # Reset font for content
@@ -142,31 +142,31 @@ class StudentReportGenerator:
             exam_detail = student_record['二階甄試'][i] if i < len(student_record['二階甄試']) else ''
             is_image_path = isinstance(exam_detail, str) and (exam_detail.lower().endswith('.png') or exam_detail.lower().endswith('.jpg') or exam_detail.lower().endswith('.jpeg'))
             
-            if is_image_path:
-                current_row_height = self.dynamic_image_row_height
+            #if is_image_path:
+            current_row_height = self.dynamic_image_row_height
 
             # Check for page break BEFORE drawing cells for the current row
             self._ensure_page_space(current_row_height)
 
-            # --- Draw 學測應試號碼 column ---
+            # --- Draw 應試號碼與姓名 column ---
             self.pdf.set_x(self.table_start_x)
             
             if i == 0:
                 self.pdf.set_fill_color(222, 222, 220) # Reset fill color
-                self.pdf.cell(self.col_widths['學測應試號碼'], current_row_height, student_record['學測應試號碼'], border=1, align='C', fill=True)
+                self.pdf.cell(self.col_widths['應試號碼與姓名'], current_row_height, student_record['應試號碼與姓名'], border=1, align='C', fill=True)
             else:
-                self.pdf.cell(self.col_widths['學測應試號碼'], current_row_height, '', border=1) # Draw empty cell for border
+                self.pdf.cell(self.col_widths['應試號碼與姓名'], current_row_height, '', border=1) # Draw empty cell for border
             
             current_x = self.pdf.get_x()
             current_y = self.pdf.get_y()
 
             # --- Draw 校系名稱 ---
             school_dept_name = student_record['校系名稱'][i].replace('\n', ' ').strip() if i < len(student_record['校系名稱']) else ''
-            
+            print(school_dept_name)
             # Text color based on data for 校系名稱
             self.pdf.set_text_color(0, 0, 0)
             self.pdf.set_xy(current_x, current_y)
-            self.pdf.multi_cell(self.col_widths['校系名稱'], self.col_height, school_dept_name, border=1)
+            self.pdf.multi_cell(self.col_widths['校系名稱'], self.col_height // 2, school_dept_name, border=1)
 
             # --- Draw 二階甄試 with background color ---
             self.pdf.set_xy(current_x + self.col_widths['校系名稱'], current_y)
@@ -198,11 +198,11 @@ class StudentReportGenerator:
                     self.pdf.set_y(current_y + current_row_height)
                     self.pdf.set_x(self.table_start_x)
                 else:
-                    self.pdf.multi_cell(self.col_widths['二階甄試'], self.col_height, f"[Image not found: {os.path.basename(image_full_path)}]", border=1, fill=True)
+                    self.pdf.multi_cell(self.col_widths['二階甄試'], self.col_height // 2, f"[Image not found: {os.path.basename(image_full_path)}]", border=1, fill=True)
                     self.pdf.set_y(current_y + current_row_height)
                     self.pdf.set_x(self.table_start_x)
             else:
-                self.pdf.multi_cell(self.col_widths['二階甄試'], self.col_height, str(exam_detail), border=1, fill=True)
+                self.pdf.multi_cell(self.col_widths['二階甄試'], self.col_height // 2, str(exam_detail), border=1, fill=True)
                 self.pdf.set_y(current_y + current_row_height)
                 self.pdf.set_x(self.table_start_x)
 

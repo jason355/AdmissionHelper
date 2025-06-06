@@ -15,6 +15,9 @@ icon.ico
 /code/images
 /code/results.pdf
 /code/ocr_failed_images
+/release
+/code/*.csv
+
 # Distribution / packaging
 .Python
 build/

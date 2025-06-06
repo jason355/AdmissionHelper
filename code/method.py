@@ -6,7 +6,7 @@ from PIL import Image as PILImage
 import pdf_maker as Pdf
 import pytesseract
 from itertools import islice
- 
+import pandas as pd
 
 def OCR(img_data):
     try:
@@ -43,34 +43,23 @@ def split_list(lst, chunk_size=60):
     iterator = iter(lst)
     return list(iter(lambda: list(islice(iterator, chunk_size)), []))
 
-def read_exam_id(file_path):
-    """Read serial numbers from a text file into a list."""
+def read_exam_csv(file_path):
     try:
-        with open(file_path, mode='r', encoding='utf-8') as file:
-            exam_ids_group = [line.strip() for line in file if line.strip()]
-            if not exam_ids_group:
-                insert_exam_id(file_path)
-                return read_exam_id(file_path)
-                 
-            return split_list(exam_ids_group)
-    except FileNotFoundError:
-        # print(f"Error: File {file_path} not found, Creating {file_path}")
-        insert_exam_id(file_path)
-        return read_exam_id(file_path)
+        # Read CSV with UTF-8 encoding to handle Chinese characters
+        df = pd.read_csv(file_path, encoding='utf-8')
+        print(f"Read {len(df)} records from {file_path}")
         
+        # Validate data
+        if set(['應試號碼', '姓名']).issubset(df.columns):
+            return df
+        else:
+            print("CSV missing required columns: 應試號碼, 姓名")
+            raise ValueError("Invalid CSV format")
+    except FileNotFoundError:
+        raise FileNotFoundError
     except Exception as e:
-        print(f"Error reading exam_ids: {e}")
-        return None
-def insert_exam_id(file_path):    
-    with open(file_path, "w", encoding="utf-8") as file:
-        temp = input("請輸入准考證號碼(多筆資料請在每筆最後換行)，兩次換行結束輸入>")
-        while temp != "":
-            try:
-                if len(temp) == 8 and temp.isdigit():
-                    file.writelines(temp+"\n")
-                temp = input("請輸入准考證號碼(多筆資料請在每筆最後換行)，兩次換行結束輸入>")
-            except KeyboardInterrupt as KE:
-                break
+        print(f"Error reading CSV: {str(e)}")
+        raise
 
 def submit_form_seleniumbase(exam_ids_group, year):
     """Use SeleniumBase with undetectable mode to submit serial number and scrape results."""
@@ -102,7 +91,7 @@ def submit_form_seleniumbase(exam_ids_group, year):
     finally:
         driver.quit()
 
-def parse_table(html_content_group):
+def parse_table(html_content_group, std_df):
     """Parse the table from the response page, focusing on specific rows."""
     try:
         print("Parsing table...")
@@ -129,7 +118,7 @@ def parse_table(html_content_group):
                 if not nested_table:
                     print(f"Skipping row without nested table")
                     continue
-                # Extract 學測應試號碼
+                # Extract 應試號碼
                 id_img = row.find('td', {'width': '25%'}).find('img')
                 id_img_src = id_img['src']
                 if id_img_src.startswith('data:image/png;base64,'):
@@ -190,16 +179,15 @@ def parse_table(html_content_group):
                             status.append(status_now)
                     else:
                         print(f"Skipping nested row with insufficient columns: {cols}")
-                # Use submitted serial number for 學測應試號碼
+                # Use submitted serial number for 應試號碼
+                print(exam_id)
                 data.append({
-                    '學測應試號碼': exam_id,
+                    '應試號碼與姓名': exam_id + ' ' + std_df.loc[std_df['應試號碼'] == exam_id, '姓名'].iloc[0],
                     '校系名稱': college_name,
                     '二階甄試': status,
                     'color':colors
                 })
 
-        
-        #print(f"Parsed data: {data}")
         return data
     except Exception as e:
         print(f"Error parsing table: {e}")
