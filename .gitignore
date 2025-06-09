@@ -17,6 +17,7 @@ icon.ico
 /code/ocr_failed_images
 /release
 /code/*.csv
+/Tesseract-OCR
 
 # Distribution / packaging
 .Python

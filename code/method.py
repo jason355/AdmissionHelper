@@ -1,15 +1,22 @@
 from seleniumbase import Driver
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
-import time, base64, io, re, os, shutil
+import time, base64, io, re, os, shutil, sys
 from PIL import Image as PILImage
 import pdf_maker as Pdf
 import pytesseract
 from itertools import islice
 import pandas as pd
 
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
+
 def OCR(img_data):
     try:
+        pytesseract.pytesseract.tesseract_cmd = resource_path("Tesseract-OCR/tesseract.exe")
         text = pytesseract.image_to_string(img_data, lang="eng")
         cleaned_text = re.sub(r'[^\d]', '', text)
         pattern = r'^\d{8}$'
